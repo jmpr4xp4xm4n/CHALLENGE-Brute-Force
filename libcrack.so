@@ -1,0 +1,53 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
+#include <setjmp.h>
+
+static int exitcode = 0;
+static char password[6];
+static jmp_buf buf;
+
+int __libc_start_main(int(*main)(int, char **, char **), int argc, char ** ubp_av,
+    void (*init) (void), void (*fini) (void), void (*rtld_fini) (void), void(*stack_end))
+{
+    char letter;
+    int counter;
+
+fprintf(stderr, "using %p as entry\n", main);
+    for(letter = 'A'; letter <= 'Z'; letter += 1)
+    {
+        for(counter = 0; counter <= 9999; counter += 1)
+        {
+            sprintf(password, "%c%04d", letter, counter);
+fprintf(stderr, "trying %s\n", password);
+            if (setjmp(buf) == 0)
+            {
+                main(0, NULL, NULL);
+            }
+            if (exitcode == 0)
+            {
+                fprintf(stderr, "password is %s\n", password);
+                return 0;
+            }
+        }
+    }
+    fprintf(stderr, "password not found\n");
+    return 1;
+}
+
+int fscanf(FILE *stream, const char *format, ...)
+{
+    va_list args;
+    char* dst;
+    va_start(args, format);
+    dst = va_arg(args, char*);
+    strcpy(dst, password);
+    va_end(args);
+    return 1;
+}
+
+void exit(int status)
+{
+    exitcode = status;
+    longjmp(buf, 1);
+}
